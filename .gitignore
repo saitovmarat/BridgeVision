@@ -1,0 +1,47 @@
+# Исключение скомпилированных файлов
+*.o
+*.obj
+*.so
+*.dll
+*.dylib
+*.exe
+
+# Исключение временных файлов Qt Creator
+*.autosave
+*.user
+*.user.*
+*.pro.user
+*.qbs.user
+*.qmake.stash
+*.qmake.cache
+
+# Исключение сгенерированных файлов
+moc_*.cpp
+qrc_*.cpp
+ui_*.h
+
+# Исключение временных файлов сборки
+build/
+debug/
+release/
+lib/*/
+
+# Исключение временных файлов IDE
+*.log
+*.swp
+*.bak
+*.tmp
+*.temp
+*.~*
+
+# Исключение файлов CMake
+CMakeFiles/
+CMakeCache.txt
+CMakeSettings.json
+cmake_install.cmake
+Makefile
+frames/
+
+
+# Исключение файлов виртуального окружения
+face_recognition_service/*venv
