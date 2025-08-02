@@ -114,7 +114,6 @@ if(CMAKE_BUILD_TYPE STREQUAL "Release")
         COMMAND ${CMAKE_COMMAND} -E copy_directory ${QT_PATH} ${DEPLOY_DIR}/Qt
         COMMAND ${CMAKE_COMMAND} -E copy_directory ${OPENCV_PATH} ${DEPLOY_DIR}/OpenCV
         COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/resources ${DEPLOY_DIR}/resources
-        COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/settings.ini ${DEPLOY_DIR}
         COMMENT "Deploying application to ${DEPLOY_DIR}"
     )
 endif()
