@@ -15,12 +15,12 @@
 
 VideoPlayer::VideoPlayer(QObject *parent)
     : QObject(parent)
+    , m_timer(new QTimer(this))
+    , m_udpSocket(new QUdpSocket(this))
 {
-    m_timer = new QTimer(this);
     m_timer->setTimerType(Qt::PreciseTimer);
     connect(m_timer, &QTimer::timeout, this, &VideoPlayer::onTimeout);
 
-    m_udpSocket = new QUdpSocket(this);
     if (!m_udpSocket->bind(QHostAddress::Any, m_localPort)) {
         emit errorOccurred("Не удалось забиндить UDP-сокет: " + m_udpSocket->errorString());
     } else {
