@@ -28,9 +28,9 @@ protected:
     void resizeEvent(QResizeEvent *event) override;
 
 private:
-    Ui::MainWindow *ui;
-    std::unique_ptr<VideoPlayer> player;
-    QImage m_lastFrame;  // Для перерисовки при resize
+    std::unique_ptr<Ui::MainWindow> ui;
+    VideoPlayer* player;
+    QImage m_lastFrame;
 };
 
 #endif // MAINWINDOW_H

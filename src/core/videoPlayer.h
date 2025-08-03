@@ -8,6 +8,8 @@
 #include <QUdpSocket>
 #include <QImage>
 
+#include <opencv2/opencv.hpp>
+
 class VideoPlayer : public QObject
 {
     Q_OBJECT
@@ -21,7 +23,7 @@ public:
     void stop();
 
 signals:
-    void frameReady(const QImage &image);        // Кадр готов к отображению
+    void frameReady(const QImage &image);
     void playbackFinished();
     void errorOccurred(const QString &error);
 
@@ -32,21 +34,18 @@ private slots:
 private:
     QString m_filePath;
     bool m_isPlaying = false;
-    void* m_capture = nullptr;
-    QTimer* m_timer = nullptr;
-    QUdpSocket* m_udpSocket = nullptr;
+    std::unique_ptr<cv::VideoCapture> m_capture;
+    QTimer* m_timer;
+    QUdpSocket* m_udpSocket;
 
     double m_frameDelay = 33.0;
 
-    // UDP
     QHostAddress m_serverAddress = QHostAddress("127.0.0.1");
-    quint16 m_serverPort = 9999;     // Порт сервера
-    quint16 m_localPort = 54322;    // Порт для приёма
+    quint16 m_serverPort = 9999;
+    quint16 m_localPort = 54322;
 
-    // Хранение текущего кадра
     QImage m_currentFrame;
 
-    // Метод для рисования рамок
     QImage drawDetections(const QImage &image, const QJsonArray &detections, const QSize &sentSize);
 };
 
