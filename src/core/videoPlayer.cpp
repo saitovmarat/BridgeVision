@@ -9,17 +9,15 @@
 #include <QPainter>
 #include <QPen>
 #include <QFont>
+#include <chrono>
+#include <thread>
 
 #include <opencv2/opencv.hpp>
 
 VideoPlayer::VideoPlayer(QObject *parent)
     : QObject(parent)
-    , m_timer(new QTimer(this))
     , m_udpSocket(new QUdpSocket(this))
 {
-    m_timer->setTimerType(Qt::PreciseTimer);
-    connect(m_timer, &QTimer::timeout, this, &VideoPlayer::onTimeout);
-
     if (!m_udpSocket->bind(QHostAddress::Any, m_localPort)) {
         emit errorOccurred("Не удалось забиндить UDP-сокет: " + m_udpSocket->errorString());
     } else {
@@ -59,37 +57,52 @@ bool VideoPlayer::loadVideo(const QString &filePath)
 
 void VideoPlayer::play()
 {
-    if (m_isPlaying || !m_capture) return;
+    if (m_isPlaying || !m_capture || !m_capture->isOpened()) return;
 
     m_isPlaying = true;
-    m_timer->start(static_cast<int>(m_frameDelay));
+    m_stopProcessing = false;
+
+    m_processingThread = std::thread(&VideoPlayer::processFrames, this);
 }
 
 void VideoPlayer::stop()
 {
-    if (m_timer->isActive()) {
-        m_timer->stop();
+    m_isPlaying = false;
+    m_stopProcessing = true;
+
+    if (m_processingThread.joinable()) {
+        m_processingThread.join();
     }
 
     m_capture.reset();
-    m_isPlaying = false;
+    m_frameQueue.clear();
 }
 
-void VideoPlayer::onTimeout()
+void VideoPlayer::processFrames()
 {
-    if (!m_capture || !m_isPlaying) return;
+    auto frameDelay = std::chrono::milliseconds(static_cast<long long>(m_frameDelay));
 
-    cv::Mat frame;
-    if (m_capture->read(frame)) {
+    while (m_isPlaying && !m_stopProcessing) {
+        auto start = std::chrono::steady_clock::now();
+
+        cv::Mat frame;
+        if (!m_capture->read(frame)) {
+            emit playbackFinished();
+            break;
+        }
+
         cv::Mat rgb;
         cvtColor(frame, rgb, cv::COLOR_BGR2RGB);
 
         QImage image(rgb.cols, rgb.rows, QImage::Format_RGB888);
-        for (int i = 0; i < rgb.rows; i++) {
+        for (int i = 0; i < rgb.rows; ++i) {
             memcpy(image.scanLine(i), rgb.ptr(i), rgb.cols * 3);
         }
 
-        m_currentFrame = image;
+        {
+            std::lock_guard<std::mutex> lock(m_framesMutex);
+            m_currentFrame = image;
+        }
 
         const QSize targetSize(640, 480);
         QImage smallImage = image.scaled(targetSize, Qt::KeepAspectRatio, Qt::SmoothTransformation);
@@ -109,22 +122,29 @@ void VideoPlayer::onTimeout()
 
         if (data.size() > 65000) {
             emit errorOccurred("UDP-пакет слишком большой: " + QString::number(data.size()));
-            return;
+        } else {
+            m_udpSocket->writeDatagram(data, m_serverAddress, m_serverPort);
         }
 
-        qint64 sent = m_udpSocket->writeDatagram(data, m_serverAddress, m_serverPort);
-        if (sent == -1) {
-            emit errorOccurred("Ошибка отправки UDP: " + m_udpSocket->errorString());
+        QImage processedImage = image;
+        {
+            std::lock_guard<std::mutex> lock(m_detectionsMutex);
+            if (m_hasValidDetections) {
+                processedImage = drawDetections(image, m_lastDetections, QSize(640, 480));
+            }
         }
-    } else {
-        stop();
-        emit playbackFinished();
-    }
 
-    if (!m_frameQueue.isEmpty()) {
-        qDebug() << "Размер очереди" << m_frameQueue.size();
-        emit frameReady(m_frameQueue.last());
-        m_frameQueue.clear();
+        if (!processedImage.isNull()) {
+            emit frameReady(processedImage);
+        }
+
+        auto end = std::chrono::steady_clock::now();
+        auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+        auto sleepTime = frameDelay - elapsed;
+
+        if (sleepTime > std::chrono::milliseconds::zero()) {
+            std::this_thread::sleep_for(sleepTime);
+        }
     }
 }
 
@@ -158,13 +178,9 @@ void VideoPlayer::onUdpReadyRead()
 
         QJsonArray detections = response["detections"].toArray();
 
-        QImage processedImage = drawDetections(m_currentFrame, detections, QSize(640, 480));
-        if (!processedImage.isNull()) {
-            if (m_frameQueue.size() >= MAX_QUEUE_SIZE) {
-                m_frameQueue.dequeue();
-            }
-            m_frameQueue.enqueue(processedImage);
-        }
+        std::lock_guard<std::mutex> lock(m_detectionsMutex);
+        m_lastDetections = detections;
+        m_hasValidDetections = true;
     }
 }
 

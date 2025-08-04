@@ -10,10 +10,14 @@ MainWindow::MainWindow(QWidget *parent)
     , player(new VideoPlayer(this))
 {
     ui->setupUi(this);
+
     connect(player, &VideoPlayer::frameReady, this, &MainWindow::updateFrame);
     connect(player, &VideoPlayer::errorOccurred, this, [this](const QString &error) {
         ui->statusBar->showMessage("Ошибка: " + error);
         qDebug() << "VideoPlayer error:" << error;
+    });
+    connect(player, &VideoPlayer::playbackFinished, this, [this]() {
+        ui->statusBar->showMessage("Видео завершено");
     });
 
     ui->cameraLabel->setText("Видео не загружено");
