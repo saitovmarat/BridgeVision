@@ -1,4 +1,3 @@
-// videoplayer.h
 #ifndef VIDEORENDERER_H
 #define VIDEORENDERER_H
 

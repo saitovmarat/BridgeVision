@@ -1,4 +1,3 @@
-// videoplayer.cpp
 #include "videoplayer.h"
 #include <QDebug>
 #include <QImage>
