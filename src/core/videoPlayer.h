@@ -6,6 +6,7 @@
 #include <QTimer>
 #include <QUdpSocket>
 #include <QImage>
+#include <QQueue>
 
 #include <opencv2/opencv.hpp>
 
@@ -44,6 +45,9 @@ private:
     quint16 m_localPort = 54322;
 
     QImage m_currentFrame;
+
+    QQueue<QImage> m_frameQueue;
+    static constexpr int MAX_QUEUE_SIZE = 10;
 
     QImage drawDetections(const QImage &image, const QJsonArray &detections, const QSize &sentSize);
 };

@@ -120,6 +120,12 @@ void VideoPlayer::onTimeout()
         stop();
         emit playbackFinished();
     }
+
+    if (!m_frameQueue.isEmpty()) {
+        qDebug() << "Размер очереди" << m_frameQueue.size();
+        emit frameReady(m_frameQueue.last());
+        m_frameQueue.clear();
+    }
 }
 
 void VideoPlayer::onUdpReadyRead()
@@ -154,7 +160,10 @@ void VideoPlayer::onUdpReadyRead()
 
         QImage processedImage = drawDetections(m_currentFrame, detections, QSize(640, 480));
         if (!processedImage.isNull()) {
-            emit frameReady(processedImage);
+            if (m_frameQueue.size() >= MAX_QUEUE_SIZE) {
+                m_frameQueue.dequeue();
+            }
+            m_frameQueue.enqueue(processedImage);
         }
     }
 }
