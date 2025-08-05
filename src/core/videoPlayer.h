@@ -11,6 +11,9 @@
 
 #include <opencv2/opencv.hpp>
 
+cv::Mat QImageToCvMat(const QImage &image);
+QImage CvMatToQImage(const cv::Mat &mat);
+
 class VideoPlayer : public QObject
 {
     Q_OBJECT

@@ -99,11 +99,6 @@ void VideoPlayer::processFrames()
             memcpy(image.scanLine(i), rgb.ptr(i), rgb.cols * 3);
         }
 
-        {
-            std::lock_guard<std::mutex> lock(m_framesMutex);
-            m_currentFrame = image;
-        }
-
         const QSize targetSize(640, 480);
         QImage smallImage = image.scaled(targetSize, Qt::KeepAspectRatio, Qt::SmoothTransformation);
 
@@ -193,22 +188,9 @@ QImage VideoPlayer::drawDetections(
         return originalImage;
     }
 
-    QImage img = originalImage.copy();
-    QPainter painter(&img);
-    painter.setRenderHint(QPainter::Antialiasing, true);
-    painter.setRenderHint(QPainter::TextAntialiasing, true);
-
-    QPen pen(Qt::green);
-    pen.setWidth(4);
-    painter.setPen(pen);
-
-    QFont font = painter.font();
-    font.setPointSize(14);
-    font.setBold(true);
-    painter.setFont(font);
+    cv::Mat mat = QImageToCvMat(originalImage);
 
     QSizeF origSize(originalImage.width(), originalImage.height());
-
     QSizeF scaledSize = origSize;
     scaledSize.scale(sentSize, Qt::KeepAspectRatio);
 
@@ -229,21 +211,74 @@ QImage VideoPlayer::drawDetections(
         int x2_o = static_cast<int>(x2_s * scaleBackX);
         int y2_o = static_cast<int>(y2_s * scaleBackY);
 
-        x1_o = qBound(0, x1_o, img.width() - 1);
-        y1_o = qBound(0, y1_o, img.height() - 1);
-        x2_o = qBound(0, x2_o, img.width() - 1);
-        y2_o = qBound(0, y2_o, img.height() - 1);
+        x1_o = std::max(0, x1_o);
+        y1_o = std::max(0, y1_o);
+        x2_o = std::min(mat.cols - 1, x2_o);
+        y2_o = std::min(mat.rows - 1, y2_o);
 
-        painter.drawRect(x1_o, y1_o, x2_o - x1_o, y2_o - y1_o);
+        cv::rectangle(mat, cv::Rect(x1_o, y1_o, x2_o - x1_o, y2_o - y1_o),
+                      cv::Scalar(0, 255, 0), 2);
 
         QString label = QString("%1 (%2)").arg(cls).arg(conf, 0, 'f', 2);
-        QRect textRect(x1_o, y1_o - 25, 150, 20);
-        painter.fillRect(textRect, Qt::green);
-        painter.setPen(Qt::white);
-        painter.drawText(textRect, Qt::AlignCenter, label);
-        painter.setPen(Qt::green);
+        std::string text = label.toStdString();
+
+        cv::Point org(x1_o, y1_o - 5);
+        cv::putText(mat, text, org, cv::FONT_HERSHEY_SIMPLEX, 0.6,
+                    cv::Scalar(0, 255, 0), 2);
     }
 
-    painter.end();
-    return img;
+    return CvMatToQImage(mat);
+}
+
+
+cv::Mat QImageToCvMat(const QImage &image)
+{
+    if (image.isNull()) {
+        return cv::Mat();
+    }
+
+    cv::Mat mat;
+    switch (image.format()) {
+    case QImage::Format_RGB888:
+        mat = cv::Mat(image.height(), image.width(), CV_8UC3, const_cast<uchar*>(image.bits()), image.bytesPerLine());
+        cv::cvtColor(mat, mat, cv::COLOR_RGB2BGR);
+        break;
+    case QImage::Format_RGB32:
+    case QImage::Format_ARGB32:
+    case QImage::Format_ARGB32_Premultiplied:
+        mat = cv::Mat(image.height(), image.width(), CV_8UC4, const_cast<uchar*>(image.bits()), image.bytesPerLine());
+        cv::cvtColor(mat, mat, cv::COLOR_RGBA2BGR);
+        break;
+    default:
+        qWarning() << "Unsupported QImage format:" << image.format();
+        return cv::Mat();
+    }
+    return mat;
+}
+
+QImage CvMatToQImage(const cv::Mat &mat)
+{
+    if (mat.empty()) {
+        return QImage();
+    }
+
+    cv::Mat rgb;
+    switch (mat.type()) {
+    case CV_8UC3:
+        cv::cvtColor(mat, rgb, cv::COLOR_BGR2RGB);
+        break;
+    case CV_8UC4:
+        cv::cvtColor(mat, rgb, cv::COLOR_BGRA2RGB);
+        break;
+    default:
+        qWarning() << "Unsupported cv::Mat type:" << mat.type();
+        return QImage();
+    }
+
+    QImage image(rgb.cols, rgb.rows, QImage::Format_RGB888);
+    for (int i = 0; i < rgb.rows; ++i) {
+        memcpy(image.scanLine(i), rgb.ptr(i), rgb.cols * 3);
+    }
+
+    return image;
 }
