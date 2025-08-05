@@ -11,7 +11,7 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
 
-    connect(player, &VideoPlayer::frameReady, this, &MainWindow::updateFrame);
+    connect(player, &VideoPlayer::frameReady, this, &MainWindow::updateFrame, Qt::QueuedConnection);
     connect(player, &VideoPlayer::errorOccurred, this, [this](const QString &error) {
         ui->statusBar->showMessage("Ошибка: " + error);
         qDebug() << "VideoPlayer error:" << error;
