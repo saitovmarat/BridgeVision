@@ -1,8 +1,8 @@
 #include "mainWindow.h"
 #include "ui_mainWindow.h"
 
-
 #include <QFileDialog>
+
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -10,6 +10,8 @@ MainWindow::MainWindow(QWidget *parent)
     , player(new VideoPlayer(this))
 {
     ui->setupUi(this);
+    setWindowTitle("Bridge Vision");
+    setWindowIcon(QIcon(":/app_icon.png"));
 
     connect(player, &VideoPlayer::frameReady, this, &MainWindow::updateFrame, Qt::QueuedConnection);
     connect(player, &VideoPlayer::errorOccurred, this, [this](const QString &error) {

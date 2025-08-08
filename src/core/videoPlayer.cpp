@@ -1,16 +1,16 @@
 #include "videoplayer.h"
+#include "frameProcessor.h"
+
 #include <QDebug>
-#include <QImage>
-#include <QBuffer>
-#include <QByteArray>
+#include <QFileInfo>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonArray>
-#include <QPainter>
-#include <QPen>
-#include <QFont>
-#include <chrono>
-#include <thread>
+#include <QMetaObject>
+#include <QThread>
+#include <QScopedPointer>
+
+#include <QUdpSocket>
 
 #include <opencv2/opencv.hpp>
 
@@ -18,11 +18,12 @@ VideoPlayer::VideoPlayer(QObject *parent)
     : QObject(parent)
     , m_udpSocket(new QUdpSocket(this))
 {
-    if (!m_udpSocket->bind(QHostAddress::Any, m_localPort)) {
-        emit errorOccurred("Не удалось забиндить UDP-сокет: " + m_udpSocket->errorString());
+    if (!m_udpSocket->bind(QHostAddress::Any, 0)) {
+        QString error = m_udpSocket->errorString();
+        qDebug() << "Ошибка bind():" << m_udpSocket->error() << error;
     } else {
+        qDebug() << "UDP-сокет слушает на порту:" << m_udpSocket->localPort();;
         connect(m_udpSocket, &QUdpSocket::readyRead, this, &VideoPlayer::onUdpReadyRead);
-        qDebug() << "UDP-сокет слушает на порту:" << m_localPort;
     }
 }
 
@@ -35,111 +36,61 @@ bool VideoPlayer::loadVideo(const QString &filePath)
 {
     stop();
 
-    m_filePath = filePath;
-    m_capture = std::make_unique<cv::VideoCapture>(filePath.toStdString());
-
-    if (!m_capture->isOpened()) {
-        emit errorOccurred("Не удалось открыть видео: " + filePath);
+    if (filePath.isEmpty()) {
+        emit errorOccurred("Путь к видео не указан");
         return false;
     }
 
-    double fps = m_capture->get(cv::CAP_PROP_FPS);
-    if (fps > 0) {
-        m_frameDelay = 1000.0 / fps;
-    } else {
-        m_frameDelay = 33.0;
+    QFileInfo info(filePath);
+    if (!info.exists()) {
+        emit errorOccurred("Файл не существует: " + filePath);
+        return false;
     }
 
-    qDebug() << "Видео загружено. FPS:" << fps << "Задержка:" << m_frameDelay << "мс";
-
+    m_filePath = filePath;
+    qDebug() << "Путь к видео установлен:" << m_filePath;
     return true;
 }
 
 void VideoPlayer::play()
 {
-    if (m_isPlaying || !m_capture || !m_capture->isOpened()) return;
+    if (m_processingThread || m_filePath.isEmpty()) {
+        return;
+    }
 
-    m_isPlaying = true;
-    m_stopProcessing = false;
+    m_processor.reset(new FrameProcessor(m_filePath));
+    m_processingThread.reset(new QThread(this));
 
-    m_processingThread = std::thread(&VideoPlayer::processFrames, this);
+    m_processor->moveToThread(m_processingThread.data());
+
+    connect(m_processor.data(), &FrameProcessor::frameReady, this, &VideoPlayer::frameReady);
+    connect(m_processor.data(), &FrameProcessor::errorOccurred, this, &VideoPlayer::errorOccurred);
+    connect(m_processor.data(), &FrameProcessor::playbackFinished, this, &VideoPlayer::playbackFinished);
+
+    connect(m_processor.data(), &FrameProcessor::sendUdpDatagram, this, [this](
+            const QByteArray &data, const QHostAddress &addr, quint16 port) {
+        m_udpSocket->writeDatagram(data, addr, port);
+    }, Qt::QueuedConnection);
+
+    connect(m_processingThread.data(), &QThread::started, this, [this]() {
+        QMetaObject::invokeMethod(m_processor.data(), &FrameProcessor::start, Qt::QueuedConnection);
+    });
+
+    connect(this, &VideoPlayer::detectionsReceived, m_processor.data(), &FrameProcessor::setDetections, Qt::QueuedConnection);
+
+    m_processingThread->start();
 }
 
 void VideoPlayer::stop()
 {
-    m_isPlaying = false;
-    m_stopProcessing = true;
+    if (m_processingThread) {
+        QMetaObject::invokeMethod(m_processor.data(), &FrameProcessor::stop, Qt::BlockingQueuedConnection);
 
-    if (m_processingThread.joinable()) {
-        m_processingThread.join();
-    }
+        m_processingThread->quit();
+        m_processingThread->wait();
 
-    m_capture.reset();
-    m_frameQueue.clear();
-}
-
-void VideoPlayer::processFrames()
-{
-    auto frameDelay = std::chrono::milliseconds(static_cast<long long>(m_frameDelay));
-
-    while (m_isPlaying && !m_stopProcessing) {
-        auto start = std::chrono::steady_clock::now();
-
-        cv::Mat frame;
-        if (!m_capture->read(frame)) {
-            emit playbackFinished();
-            break;
-        }
-
-        cv::Mat rgb;
-        cvtColor(frame, rgb, cv::COLOR_BGR2RGB);
-
-        QImage image(rgb.cols, rgb.rows, QImage::Format_RGB888);
-        for (int i = 0; i < rgb.rows; ++i) {
-            memcpy(image.scanLine(i), rgb.ptr(i), rgb.cols * 3);
-        }
-
-        const QSize targetSize(640, 480);
-        QImage smallImage = image.scaled(targetSize, Qt::KeepAspectRatio, Qt::SmoothTransformation);
-
-        QByteArray buffer;
-        QBuffer qbuffer(&buffer);
-        qbuffer.open(QIODevice::WriteOnly);
-        smallImage.save(&qbuffer, "JPEG", 60);
-        qbuffer.close();
-
-        QString b64 = buffer.toBase64();
-
-        QJsonObject json;
-        json["frame"] = b64;
-        QJsonDocument doc(json);
-        QByteArray data = doc.toJson(QJsonDocument::Compact);
-
-        if (data.size() > 65000) {
-            emit errorOccurred("UDP-пакет слишком большой: " + QString::number(data.size()));
-        } else {
-            m_udpSocket->writeDatagram(data, m_serverAddress, m_serverPort);
-        }
-
-        QImage processedImage = image;
-        {
-            std::lock_guard<std::mutex> lock(m_detectionsMutex);
-            if (m_hasValidDetections) {
-                processedImage = drawDetections(image, m_lastDetections, QSize(640, 480));
-            }
-        }
-
-        if (!processedImage.isNull()) {
-            emit frameReady(processedImage);
-        }
-
-        auto end = std::chrono::steady_clock::now();
-        auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-        auto sleepTime = frameDelay - elapsed;
-
-        if (sleepTime > std::chrono::milliseconds::zero()) {
-            std::this_thread::sleep_for(sleepTime);
-        }
+        m_processingThread.reset();
+        m_processor.reset();
     }
 }
 
@@ -157,128 +108,24 @@ void VideoPlayer::onUdpReadyRead()
         QJsonDocument doc = QJsonDocument::fromJson(datagram, &error);
         if (error.error != QJsonParseError::NoError) {
             emit errorOccurred("JSON parse error: " + error.errorString());
-            return;
+            continue;
         }
 
         QJsonObject response = doc.object();
+
         if (response.contains("error")) {
             emit errorOccurred("Серверная ошибка: " + response["error"].toString());
-            return;
+            continue;
         }
 
         if (!response["success"].toBool()) {
             emit errorOccurred("Обработка на сервере не удалась");
-            return;
+            continue;
         }
 
         QJsonArray detections = response["detections"].toArray();
 
-        std::lock_guard<std::mutex> lock(m_detectionsMutex);
-        m_lastDetections = detections;
-        m_hasValidDetections = true;
+        emit detectionsReceived(detections);
     }
 }
 
-QImage VideoPlayer::drawDetections(
-    const QImage &originalImage,
-    const QJsonArray &detections,
-    const QSize &sentSize)
-{
-    if (originalImage.isNull() || detections.isEmpty()) {
-        return originalImage;
-    }
-
-    cv::Mat mat = QImageToCvMat(originalImage);
-
-    QSizeF origSize(originalImage.width(), originalImage.height());
-    QSizeF scaledSize = origSize;
-    scaledSize.scale(sentSize, Qt::KeepAspectRatio);
-
-    double scaleBackX = origSize.width() / scaledSize.width();
-    double scaleBackY = origSize.height() / scaledSize.height();
-
-    for (const QJsonValue &val : detections) {
-        QJsonObject det = val.toObject();
-        QString cls = det["class"].toString();
-        double conf = det["confidence"].toDouble();
-        int x1_s = det["x1"].toInt();
-        int y1_s = det["y1"].toInt();
-        int x2_s = det["x2"].toInt();
-        int y2_s = det["y2"].toInt();
-
-        int x1_o = static_cast<int>(x1_s * scaleBackX);
-        int y1_o = static_cast<int>(y1_s * scaleBackY);
-        int x2_o = static_cast<int>(x2_s * scaleBackX);
-        int y2_o = static_cast<int>(y2_s * scaleBackY);
-
-        x1_o = std::max(0, x1_o);
-        y1_o = std::max(0, y1_o);
-        x2_o = std::min(mat.cols - 1, x2_o);
-        y2_o = std::min(mat.rows - 1, y2_o);
-
-        cv::rectangle(mat, cv::Rect(x1_o, y1_o, x2_o - x1_o, y2_o - y1_o),
-                      cv::Scalar(0, 255, 0), 2);
-
-        QString label = QString("%1 (%2)").arg(cls).arg(conf, 0, 'f', 2);
-        std::string text = label.toStdString();
-
-        cv::Point org(x1_o, y1_o - 5);
-        cv::putText(mat, text, org, cv::FONT_HERSHEY_SIMPLEX, 0.6,
-                    cv::Scalar(0, 255, 0), 2);
-    }
-
-    return CvMatToQImage(mat);
-}
-
-
-cv::Mat QImageToCvMat(const QImage &image)
-{
-    if (image.isNull()) {
-        return cv::Mat();
-    }
-
-    cv::Mat mat;
-    switch (image.format()) {
-    case QImage::Format_RGB888:
-        mat = cv::Mat(image.height(), image.width(), CV_8UC3, const_cast<uchar*>(image.bits()), image.bytesPerLine());
-        cv::cvtColor(mat, mat, cv::COLOR_RGB2BGR);
-        break;
-    case QImage::Format_RGB32:
-    case QImage::Format_ARGB32:
-    case QImage::Format_ARGB32_Premultiplied:
-        mat = cv::Mat(image.height(), image.width(), CV_8UC4, const_cast<uchar*>(image.bits()), image.bytesPerLine());
-        cv::cvtColor(mat, mat, cv::COLOR_RGBA2BGR);
-        break;
-    default:
-        qWarning() << "Unsupported QImage format:" << image.format();
-        return cv::Mat();
-    }
-    return mat;
-}
-
-QImage CvMatToQImage(const cv::Mat &mat)
-{
-    if (mat.empty()) {
-        return QImage();
-    }
-
-    cv::Mat rgb;
-    switch (mat.type()) {
-    case CV_8UC3:
-        cv::cvtColor(mat, rgb, cv::COLOR_BGR2RGB);
-        break;
-    case CV_8UC4:
-        cv::cvtColor(mat, rgb, cv::COLOR_BGRA2RGB);
-        break;
-    default:
-        qWarning() << "Unsupported cv::Mat type:" << mat.type();
-        return QImage();
-    }
-
-    QImage image(rgb.cols, rgb.rows, QImage::Format_RGB888);
-    for (int i = 0; i < rgb.rows; ++i) {
-        memcpy(image.scanLine(i), rgb.ptr(i), rgb.cols * 3);
-    }
-
-    return image;
-}
