@@ -19,7 +19,7 @@ To visualize bounding boxes around detected bridges:
    ```bash
    bridges_detection_api udp
    ```
-5. **Download and extract the latest release package** from [Bridge Vision](https://github.com/saitovmarat/BridgeVision/releases) и распаковать его
+5. **Download and extract the latest release package** from [Bridge Vision](https://github.com/saitovmarat/BridgeVision/releases) 
 6. **Launch the application** by running `BridgeVision.exe`
 
 ### 🔧 Technologies Used
