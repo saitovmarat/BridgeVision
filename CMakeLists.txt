@@ -2,8 +2,6 @@ cmake_minimum_required(VERSION 3.24)
 
 project(BridgeVision VERSION 0.1 LANGUAGES CXX)
 
-add_definitions(-DUDP)
-
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -30,6 +28,8 @@ set(APPLICATION_SOURCES
 )
 
 add_executable(${PROJECT_NAME} WIN32 ${APPLICATION_SOURCES})
+
+target_compile_definitions(${PROJECT_NAME} PRIVATE UDP)
 
 set_target_properties(${PROJECT_NAME} PROPERTIES
     AUTOMOC ON
