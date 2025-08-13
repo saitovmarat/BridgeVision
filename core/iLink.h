@@ -3,10 +3,7 @@
 
 #include <QObject>
 #include <QImage>
-#include <QHostAddress>
 
-class QUdpSocket;
-class FrameProcessor;
 
 class ILink : public QObject
 {

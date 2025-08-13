@@ -16,7 +16,6 @@ MainWindow::MainWindow(ILink* link, QWidget *parent)
     connect(m_link, &ILink::frameReady, this, &MainWindow::updateFrame, Qt::QueuedConnection);
     connect(m_link, &ILink::errorOccurred, this, [this](const QString &error) {
         ui->statusBar->showMessage("Ошибка: " + error);
-        qDebug() << "Server error:" << error;
     });
     connect(m_link, &ILink::playbackFinished, this, [this]() {
         ui->statusBar->showMessage("Видео завершено");
