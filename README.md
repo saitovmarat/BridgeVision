@@ -1,6 +1,6 @@
-# 🌉 BridgeVision — Bridge Detection System for Video
+# 🌉 bridge-detector-client — Bridge Detection System for Video
 
-**BridgeVision** is a C++/Qt application designed for real-time visualization of bridge detection in video streams. It seamlessly integrates with a dedicated detection backend to display results with bounding boxes overlaid on the original footage.
+**bridge-detector-client** is a C++/Qt application designed for real-time visualization of bridge detection in video streams. It seamlessly integrates with a dedicated detection backend to display results with bounding boxes overlaid on the original footage.
 
 ### 🚀 Key Features
 - Load video files (e.g., MP4, AVI)
@@ -10,7 +10,7 @@
 
 ### 🛠 How to Run
 To visualize bounding boxes around detected bridges:
-1. **Download the latest `.whl` package** from the [Bridge Detection API release page](https://github.com/saitovmarat/bridges_detection_api/releases)
+1. **Download the latest `.whl` package** from the [Bridge Detection API release page](https://github.com/saitovmarat/bridge-detector-api/releases)
 2. **Install it using pip** (recommended inside a virtual environment):
    ```bash
    pip install bridges_detection_api-X.X.X-py3-none-any.whl
@@ -19,7 +19,7 @@ To visualize bounding boxes around detected bridges:
    ```bash
    bridges_detection_api udp
    ```
-5. **Download and extract the latest release package** from [Bridge Vision](https://github.com/saitovmarat/BridgeVision/releases) 
+5. **Download and extract the latest release package** from [Bridge Vision](https://github.com/saitovmarat/bridge-detector-client/releases) 
 6. **Launch the application** by running `BridgeVision.exe`
 
 ### 🔧 Technologies Used

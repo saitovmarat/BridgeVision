@@ -25,6 +25,7 @@ build/
 debug/
 release/
 lib/*/
+out/
 
 # Исключение временных файлов IDE
 *.log
@@ -33,6 +34,8 @@ lib/*/
 *.tmp
 *.temp
 *.~*
+.vs
+.vscode
 
 # Исключение файлов CMake
 CMakeFiles/
