@@ -17,10 +17,10 @@ class MainWindow : public QMainWindow
 
 public:
     explicit MainWindow(ILink* link, QWidget *parent = nullptr);
-    ~MainWindow();
+    ~MainWindow() override;
 
 private slots:
-    void on_fileSelectionButton_clicked();
+    void onFileSelectionButtonClicked();
     void updateFrame(const QImage &image);
 
 protected:
@@ -29,7 +29,9 @@ protected:
 private:
     std::unique_ptr<Ui::MainWindow> ui;
     ILink* m_link;
-    QImage m_lastFrame;
+    QImage m_last_frame;
+
+    Q_DISABLE_COPY_MOVE(MainWindow)
 };
 
 #endif // MAINWINDOW_H

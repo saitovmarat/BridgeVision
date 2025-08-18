@@ -1,7 +1,17 @@
 #include "mainWindow.h"
 #include "ui_mainWindow.h"
 
+#include <QMainWindow>
 #include <QFileDialog>
+#include <QLabel>
+#include <QStatusBar>
+#include <QImage>
+#include <QPixmap>
+#include <QResizeEvent>
+#include <QIcon>
+#include <QDebug>
+#include <QMessageBox>
+#include <QMetaObject> 
 
 
 MainWindow::MainWindow(ILink* link, QWidget *parent)
@@ -20,31 +30,35 @@ MainWindow::MainWindow(ILink* link, QWidget *parent)
     connect(m_link, &ILink::playbackFinished, this, [this]() {
         ui->statusBar->showMessage("Видео завершено");
     });
+    connect(ui->fileSelectionButton, &QPushButton::clicked, this, &MainWindow::onFileSelectionButtonClicked);
 
     ui->cameraLabel->setText("Видео не загружено");
     ui->cameraLabel->setAlignment(Qt::AlignCenter);
 }
 
-MainWindow::~MainWindow() = default;
-
-void MainWindow::on_fileSelectionButton_clicked()
+MainWindow::~MainWindow() 
 {
-    QString filePath = QFileDialog::getOpenFileName(
+    m_link->stop();
+}
+
+void MainWindow::onFileSelectionButtonClicked()
+{
+    const QString file_path = QFileDialog::getOpenFileName(
         this,
         "Выберите видео-файл",
         QString(PROJECT_SOURCE_DIR),
         "Видео файлы (*.mp4);;Все файлы (*)"
     );
 
-    if (!filePath.isEmpty()) {
-        qDebug() << "Выбран MP4-файл:" << filePath;
+    if (!file_path.isEmpty()) {
+        qDebug() << "Выбран MP4-файл:" << file_path;
 
-        if (!m_link->loadVideo(filePath)) {
+        if (!m_link->loadVideo(file_path)) {
             ui->statusBar->showMessage("Ошибка загрузки видео");
         } else {
             m_link->play();
 
-            ui->statusBar->showMessage("Воспроизведение: " + filePath);
+            ui->statusBar->showMessage("Воспроизведение: " + file_path);
         }
     }
 }
@@ -55,9 +69,9 @@ void MainWindow::updateFrame(const QImage &image)
         return;
     }
 
-    m_lastFrame = image;
+    m_last_frame = image;
 
-    QPixmap pixmap = QPixmap::fromImage(image).scaled(
+    const QPixmap pixmap = QPixmap::fromImage(image).scaled(
         ui->cameraLabel->size(),
         Qt::KeepAspectRatio,
         Qt::SmoothTransformation
@@ -69,8 +83,8 @@ void MainWindow::updateFrame(const QImage &image)
 
 void MainWindow::resizeEvent(QResizeEvent *event)
 {
-    if (!m_lastFrame.isNull()) {
-        updateFrame(m_lastFrame);
+    if (!m_last_frame.isNull()) {
+        updateFrame(m_last_frame);
     }
     QMainWindow::resizeEvent(event);
 }

@@ -16,51 +16,48 @@
 
 UdpLink::UdpLink(QObject *parent)
     : ILink(parent)
-    , m_udpSocket(new QUdpSocket(this))
+    , m_udp_socket(new QUdpSocket(this))
 {
-    if (!m_udpSocket->bind(QHostAddress::Any, 0)) {
-        QString error = m_udpSocket->errorString();
-        qDebug() << "Ошибка bind():" << m_udpSocket->error() << error;
+    if (!m_udp_socket->bind(QHostAddress::Any, 0)) {
+        const QString error = m_udp_socket->errorString();
+        qDebug() << "Ошибка bind():" << m_udp_socket->error() << error;
     } else {
-        qDebug() << "UDP-сокет слушает на порту:" << m_udpSocket->localPort();;
-        connect(m_udpSocket, &QUdpSocket::readyRead, this, &UdpLink::onUdpReadyRead);
+        qDebug() << "UDP-сокет слушает на порту:" << m_udp_socket->localPort();;
+        connect(m_udp_socket, &QUdpSocket::readyRead, this, &UdpLink::onUdpReadyRead);
     }
 }
 
-UdpLink::~UdpLink()
-{
-    stop();
-}
+UdpLink::~UdpLink() = default;
 
-bool UdpLink::loadVideo(const QString &filePath)
+bool UdpLink::loadVideo(const QString &file_path)
 {
     stop();
 
-    if (filePath.isEmpty()) {
+    if (file_path.isEmpty()) {
         emit errorOccurred("Путь к видео не указан");
         return false;
     }
 
-    QFileInfo info(filePath);
+    const QFileInfo info(file_path);
     if (!info.exists()) {
-        emit errorOccurred("Файл не существует: " + filePath);
+        emit errorOccurred("Файл не существует: " + file_path);
         return false;
     }
 
-    m_filePath = filePath;
+    m_file_path = file_path;
     return true;
 }
 
 void UdpLink::play()
 {
-    if (m_processingThread || m_filePath.isEmpty()) {
+    if (m_processing_thread || m_file_path.isEmpty()) {
         return;
     }
 
-    m_processor.reset(new FrameProcessor(m_filePath));
-    m_processingThread.reset(new QThread(this));
+    m_processor.reset(new FrameProcessor(m_file_path));
+    m_processing_thread.reset(new QThread(this));
 
-    m_processor->moveToThread(m_processingThread.data());
+    m_processor->moveToThread(m_processing_thread.data());
 
     connect(m_processor.data(), &FrameProcessor::frameReady, this, &UdpLink::frameReady);
     connect(m_processor.data(), &FrameProcessor::errorOccurred, this, &UdpLink::errorOccurred);
@@ -68,43 +65,43 @@ void UdpLink::play()
 
     connect(m_processor.data(), &FrameProcessor::sendUdpDatagram, this, [this](
             const QByteArray &data, const QHostAddress &addr, quint16 port) {
-        m_udpSocket->writeDatagram(data, addr, port);
+        m_udp_socket->writeDatagram(data, addr, port);
     }, Qt::QueuedConnection);
 
-    connect(m_processingThread.data(), &QThread::started, this, [this]() {
-        QMetaObject::invokeMethod(m_processor.data(), &FrameProcessor::start, Qt::QueuedConnection);
+    connect(m_processing_thread.data(), &QThread::started, this, [this]() {
+        QMetaObject::invokeMethod(m_processor.data(), &FrameProcessor::start, Qt::QueuedConnection); // NOLINT(clang-analyzer-cplusplus.NewDeleteLeaks)
     });
 
     connect(this, &UdpLink::detectionsReceived, m_processor.data(), &FrameProcessor::setDetections, Qt::QueuedConnection);
 
-    m_processingThread->start();
+    m_processing_thread->start();
 }
 
 void UdpLink::stop()
 {
-    if (m_processingThread) {
+    if (m_processing_thread) {
         QMetaObject::invokeMethod(m_processor.data(), &FrameProcessor::stop, Qt::BlockingQueuedConnection);
 
-        m_processingThread->quit();
-        m_processingThread->wait();
+        m_processing_thread->quit();
+        m_processing_thread->wait();
 
-        m_processingThread.reset();
+        m_processing_thread.reset();
         m_processor.reset();
     }
 }
 
 void UdpLink::onUdpReadyRead()
 {
-    while (m_udpSocket->hasPendingDatagrams()) {
+    while (m_udp_socket->hasPendingDatagrams()) {
         QByteArray datagram;
-        datagram.resize(m_udpSocket->pendingDatagramSize());
+        datagram.resize(m_udp_socket->pendingDatagramSize());
         QHostAddress sender;
-        quint16 senderPort;
+        quint16 sender_port;
 
-        m_udpSocket->readDatagram(datagram.data(), datagram.size(), &sender, &senderPort);
+        m_udp_socket->readDatagram(datagram.data(), datagram.size(), &sender, &sender_port);
 
         QJsonParseError error;
-        QJsonDocument doc = QJsonDocument::fromJson(datagram, &error);
+        const QJsonDocument doc = QJsonDocument::fromJson(datagram, &error);
         if (error.error != QJsonParseError::NoError) {
             emit errorOccurred("JSON parse error: " + error.errorString());
             continue;
@@ -122,7 +119,7 @@ void UdpLink::onUdpReadyRead()
             continue;
         }
 
-        QJsonArray detections = response["detections"].toArray();
+        const QJsonArray detections = response["detections"].toArray();
 
         emit detectionsReceived(detections);
     }

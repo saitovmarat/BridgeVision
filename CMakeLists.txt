@@ -5,6 +5,12 @@ project(bridge-detector-client VERSION 0.1 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+if(CMAKE_CXX_CLANG_TIDY)
+    message(STATUS "Clang-Tidy enabled: ${CMAKE_CXX_CLANG_TIDY}")
+    list(APPEND CMAKE_CXX_CLANG_TIDY "--warnings-as-errors=*")
+    set(CMAKE_CXX_CLANG_TIDY ${CMAKE_CXX_CLANG_TIDY})
+endif()
+
 if(NOT (CMAKE_SYSTEM_NAME STREQUAL "Windows"))
     message(FATAL_ERROR "Only Windows is supported.")
 endif()
@@ -44,33 +50,3 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     CoreLib     
     NetLib
 )
-
-if(CMAKE_BUILD_TYPE STREQUAL "Release")
-    set(DEPLOY_DIR "${CMAKE_BINARY_DIR}/Deploy")
-
-    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E make_directory ${DEPLOY_DIR}
-        COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:${PROJECT_NAME}> ${DEPLOY_DIR}
-        COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/resources ${DEPLOY_DIR}/resources
-        COMMENT "📦 Копируем приложение и ресурсы"
-    )
-
-    if(TARGET Qt6::Core)
-        get_target_property(QT_BIN_DIR Qt6::Core IMPORTED_LOCATION)
-        get_filename_component(QT_BIN_DIR "${QT_BIN_DIR}" DIRECTORY)
-        add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_directory "${QT_BIN_DIR}" ${DEPLOY_DIR}
-            COMMENT "🟢 Копируем Qt DLL из ${QT_BIN_DIR}"
-        )
-    endif()
-
-    if(OpenCV_LIB_DIR)
-        get_filename_component(OPENCV_BIN_DIR "${OpenCV_LIB_DIR}/../bin" ABSOLUTE)
-        if(EXISTS "${OPENCV_BIN_DIR}")
-            add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-                COMMAND ${CMAKE_COMMAND} -E copy_directory "${OPENCV_BIN_DIR}" ${DEPLOY_DIR}
-                COMMENT "🔵 Копируем OpenCV DLL из ${OPENCV_BIN_DIR}"
-            )
-        endif()
-    endif()
-endif()

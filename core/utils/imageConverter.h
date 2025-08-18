@@ -10,7 +10,7 @@
  * @param image Входное изображение.
  * @return cv::Mat (в формате BGR).
  */
-cv::Mat QImageToCvMat(const QImage &image);
+cv::Mat qImageToCvMat(const QImage &image);
 
 /**
  * @brief Конвертирует cv::Mat в QImage.
@@ -18,6 +18,6 @@ cv::Mat QImageToCvMat(const QImage &image);
  * @param mat Входная матрица OpenCV.
  * @return QImage (в формате RGB888).
  */
-QImage CvMatToQImage(const cv::Mat &mat);
+QImage cvMatToQImage(const cv::Mat &mat);
 
 #endif // IMAGECONVERTER_H

@@ -2,13 +2,18 @@
 #include <QDebug>
 #include <QImage>
 
-#include <opencv2/opencv.hpp>
+#include <opencv2/core.hpp>
+#include <opencv2/imgproc.hpp>
+#include <opencv2/highgui.hpp>
+#include <QImage>
+#include <QColor>
+#include <qglobal.h>
 
 
-cv::Mat QImageToCvMat(const QImage &image)
+cv::Mat qImageToCvMat(const QImage &image)
 {
     if (image.isNull()) {
-        return cv::Mat();
+        return cv::Mat{};
     }
 
     cv::Mat mat;
@@ -25,15 +30,15 @@ cv::Mat QImageToCvMat(const QImage &image)
         break;
     default:
         qWarning() << "Unsupported QImage format:" << image.format();
-        return cv::Mat();
+        return cv::Mat{};
     }
     return mat;
 }
 
-QImage CvMatToQImage(const cv::Mat &mat)
+QImage cvMatToQImage(const cv::Mat &mat)
 {
     if (mat.empty()) {
-        return QImage();
+        return QImage{};
     }
 
     cv::Mat rgb;
@@ -46,12 +51,12 @@ QImage CvMatToQImage(const cv::Mat &mat)
         break;
     default:
         qWarning() << "Unsupported cv::Mat type:" << mat.type();
-        return QImage();
+        return QImage{};
     }
 
     QImage image(rgb.cols, rgb.rows, QImage::Format_RGB888);
     for (int i = 0; i < rgb.rows; ++i) {
-        memcpy(image.scanLine(i), rgb.ptr(i), rgb.cols * 3);
+        memcpy(image.scanLine(i), rgb.ptr(i), static_cast<long long>(rgb.cols) * 3);
     }
 
     return image;

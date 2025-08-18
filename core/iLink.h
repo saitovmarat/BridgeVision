@@ -11,9 +11,9 @@ class ILink : public QObject
 
 public:
     explicit ILink(QObject *parent = nullptr) : QObject(parent) {}
-    virtual ~ILink() = default;
+    ~ILink() override = default;
 
-    virtual bool loadVideo(const QString &filePath) = 0;
+    virtual bool loadVideo(const QString &file_path) = 0;
     virtual void play() = 0;
     virtual void stop() = 0;
 
@@ -22,6 +22,9 @@ signals:
     void errorOccurred(const QString &error);
     void playbackFinished();
     void detectionsReceived(const QJsonArray &detections);
+
+private:
+    Q_DISABLE_COPY_MOVE(ILink)
 };
 
 #endif

@@ -18,7 +18,7 @@ public:
     explicit UdpLink(QObject *parent = nullptr);
     ~UdpLink() override;
 
-    bool loadVideo(const QString &filePath) override;
+    bool loadVideo(const QString &file_path) override;
     void play() override;
     void stop() override;
 
@@ -26,11 +26,13 @@ private slots:
     void onUdpReadyRead();
 
 private:
-    QString m_filePath;
+    QString m_file_path;
     QScopedPointer<FrameProcessor> m_processor;
-    QScopedPointer<QThread> m_processingThread;
+    QScopedPointer<QThread> m_processing_thread;
 
-    QUdpSocket* m_udpSocket;
+    QUdpSocket* m_udp_socket;
+
+    Q_DISABLE_COPY_MOVE(UdpLink)
 };
 
 #endif

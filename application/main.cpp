@@ -13,7 +13,7 @@ using Link = UdpLink;
 
 int main(int argc, char* argv[])
 {
-    QApplication a(argc, argv);
+    const QApplication a(argc, argv);
 
     ILink* link = new Link();
     MainWindow w(link);

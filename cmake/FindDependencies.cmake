@@ -21,12 +21,6 @@ find_package(OpenCV REQUIRED COMPONENTS
     imgcodecs
 )
 
-message(STATUS "Qt6::Core include dirs: ${Qt6Core_INCLUDE_DIRS}")
-
-if(NOT OpenCV_FOUND)
-    message(FATAL_ERROR "OpenCV not found.")
-endif()
-
 add_library(Project::QtCore INTERFACE IMPORTED)
 set_target_properties(Project::QtCore PROPERTIES
     INTERFACE_LINK_LIBRARIES Qt6::Core

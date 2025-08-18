@@ -1,46 +1,48 @@
 #include "detectionsDrawer.h"
 #include "imageConverter.h"
 
-#include <QPainter>
-#include <QPen>
-#include <QFont>
-#include <QDebug>
+#include <QImage>
+#include <QJsonArray>
+#include <QJsonValue>
 #include <QJsonObject>
-
-#include <opencv2/opencv.hpp>
+#include <QSizeF>
+#include <QSize>
+#include <opencv2/core.hpp>
+#include <opencv2/imgproc.hpp>
+#include <algorithm>
 
 
 QImage drawDetections(
-    const QImage &originalImage,
+    const QImage &original_image,
     const QJsonArray &detections,
-    const QSize &sentSize)
+    const QSize &sent_size)
 {
-    if (originalImage.isNull() || detections.isEmpty()) {
-        return originalImage;
+    if (original_image.isNull() || detections.isEmpty()) {
+        return original_image;
     }
 
-    cv::Mat mat = QImageToCvMat(originalImage);
+    cv::Mat mat = qImageToCvMat(original_image);
 
-    QSizeF origSize(originalImage.width(), originalImage.height());
-    QSizeF scaledSize = origSize;
-    scaledSize.scale(sentSize, Qt::KeepAspectRatio);
+    const QSizeF orig_size(original_image.width(), original_image.height());
+    QSizeF scaled_size = orig_size;
+    scaled_size.scale(sent_size, Qt::KeepAspectRatio);
 
-    double scaleBackX = origSize.width() / scaledSize.width();
-    double scaleBackY = origSize.height() / scaledSize.height();
+    const double scale_back_x = orig_size.width() / scaled_size.width();
+    const double scale_back_y = orig_size.height() / scaled_size.height();
 
-    for (const QJsonValue &val : detections) {
+    for (const auto &val : detections) {
         QJsonObject det = val.toObject();
-        QString cls = det["class"].toString();
-        double conf = det["confidence"].toDouble();
-        int x1_s = det["x1"].toInt();
-        int y1_s = det["y1"].toInt();
-        int x2_s = det["x2"].toInt();
-        int y2_s = det["y2"].toInt();
+        const QString cls = det["class"].toString();
+        const double conf = det["confidence"].toDouble();
+        const int x1_s = det["x1"].toInt();
+        const int y1_s = det["y1"].toInt();
+        const int x2_s = det["x2"].toInt();
+        const int y2_s = det["y2"].toInt();
 
-        int x1_o = static_cast<int>(x1_s * scaleBackX);
-        int y1_o = static_cast<int>(y1_s * scaleBackY);
-        int x2_o = static_cast<int>(x2_s * scaleBackX);
-        int y2_o = static_cast<int>(y2_s * scaleBackY);
+        int x1_o = static_cast<int>(x1_s * scale_back_x);
+        int y1_o = static_cast<int>(y1_s * scale_back_y);
+        int x2_o = static_cast<int>(x2_s * scale_back_x);
+        int y2_o = static_cast<int>(y2_s * scale_back_y);
 
         x1_o = std::max(0, x1_o);
         y1_o = std::max(0, y1_o);
@@ -48,15 +50,15 @@ QImage drawDetections(
         y2_o = std::min(mat.rows - 1, y2_o);
 
         cv::rectangle(mat, cv::Rect(x1_o, y1_o, x2_o - x1_o, y2_o - y1_o),
-                      cv::Scalar(0, 255, 0), 2);
+                      cv::Scalar(0, COLOR_MAX, 0), LINE_THICKNESS);
 
-        QString label = QString("%1 (%2)").arg(cls).arg(conf, 0, 'f', 2);
-        std::string text = label.toStdString();
+        const QString label = QString("%1 (%2)").arg(cls).arg(conf, 0, 'f', 2);
+        const std::string text = label.toStdString();
 
-        cv::Point org(x1_o, y1_o - 5);
-        cv::putText(mat, text, org, cv::FONT_HERSHEY_SIMPLEX, 0.6,
-                    cv::Scalar(0, 255, 0), 2);
+        const cv::Point org(x1_o, y1_o - 5);
+        cv::putText(mat, text, org, cv::FONT_HERSHEY_SIMPLEX, FONT_SCALE,
+            cv::Scalar(0, COLOR_MAX, 0), LINE_THICKNESS);
     }
 
-    return CvMatToQImage(mat);
+    return cvMatToQImage(mat);
 }

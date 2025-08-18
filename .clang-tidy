@@ -1,0 +1,37 @@
+Checks: >
+  -*,
+  modernize-use-override,
+  modernize-pass-by-value,
+  modernize-return-braced-init-list,
+  readability-identifier-naming,
+  readability-braces-around-statements,
+  bugprone-implicit-widening-of-multiplication-result,
+  performance-*, 
+  cppcoreguidelines-explicit-virtual-functions,
+  cppcoreguidelines-special-member-functions,
+  cppcoreguidelines-avoid-magic-numbers,
+  clang-analyzer-*,
+  misc-const-correctness,
+  cert-*
+
+CheckOptions:
+  - key:        readability-identifier-naming.VariableCase
+    value:      lower_case
+  - key:        readability-identifier-naming.ParameterCase
+    value:      lower_case
+  - key:        readability-identifier-naming.FunctionCase
+    value:      camelBack
+  - key:        readability-identifier-naming.ConstantCase
+    value:      UPPER_CASE
+  - key:        readability-identifier-naming.LocalConstantCase
+    value:      lower_case
+  - key:        readability-identifier-naming.MemberCase
+    value:      lower_case
+  - key:        readability-identifier-naming.StaticMemberCase
+    value:      lower_case
+  - key:        readability-identifier-naming.GlobalVariableCase
+    value:      lower_case
+
+WarningsAsErrors: '*'
+
+HeaderFilterRegex: 'bridge-detector-client[/\\](core|net|application)'
