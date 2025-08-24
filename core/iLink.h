@@ -21,7 +21,10 @@ signals:
     void frameReady(const QImage &image);
     void errorOccurred(const QString &error);
     void playbackFinished();
-    void detectionsReceived(const QJsonArray &detections);
+    void processingResultReceived(
+        const QJsonArray& detections,
+        const QJsonObject& arch_center
+    );
 
 private:
     Q_DISABLE_COPY_MOVE(ILink)

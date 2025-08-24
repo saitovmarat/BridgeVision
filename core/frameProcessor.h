@@ -4,6 +4,7 @@
 #include <QObject>
 #include <QString>
 #include <QJsonArray>
+#include <QJsonObject> 
 #include <QHostAddress>
 #include <QMutex>
 #include <QSize>
@@ -36,7 +37,7 @@ public slots:
     void start();
     void processFrame();
     void stop();
-    void setDetections(const QJsonArray &detections);
+    void setProcessingResult(const QJsonArray& detections, const QJsonObject& arch_center);
 
 private:
     QString m_video_path;
@@ -45,9 +46,9 @@ private:
     int m_frame_delay_ms = DEFAULT_FRAME_DELAY_MS;
     bool m_stop = false;
 
-    QMutex m_detections_mutex;
     QJsonArray m_last_detections;
-    bool m_has_valid_detections = false;
+    QJsonObject m_last_arch_center; 
+    mutable QMutex m_results_mutex;
 
     Q_DISABLE_COPY_MOVE(FrameProcessor)
 };

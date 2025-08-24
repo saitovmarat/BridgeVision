@@ -72,7 +72,7 @@ void UdpLink::play()
         QMetaObject::invokeMethod(m_processor.data(), &FrameProcessor::start, Qt::QueuedConnection); // NOLINT(clang-analyzer-cplusplus.NewDeleteLeaks)
     });
 
-    connect(this, &UdpLink::detectionsReceived, m_processor.data(), &FrameProcessor::setDetections, Qt::QueuedConnection);
+    connect(this, &UdpLink::processingResultReceived, m_processor.data(), &FrameProcessor::setProcessingResult, Qt::QueuedConnection);
 
     m_processing_thread->start();
 }
@@ -120,8 +120,10 @@ void UdpLink::onUdpReadyRead()
         }
 
         const QJsonArray detections = response["detections"].toArray();
+        const QJsonObject arch_center = response.contains("arch_center") ?
+            response["arch_center"].toObject() : QJsonObject{};
 
-        emit detectionsReceived(detections);
+        emit processingResultReceived(detections, arch_center);
     }
 }
 

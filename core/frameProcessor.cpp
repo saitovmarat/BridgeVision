@@ -1,5 +1,6 @@
 #include "frameProcessor.h"
-#include "detectionsDrawer.h"
+#include "overlayRenderer.h"
+#include "imageConverter.h"
 
 #include <qobjectdefs.h>       
 #include <QDebug>               
@@ -72,14 +73,7 @@ void FrameProcessor::processFrame()
         return;
     }
 
-    cv::Mat rgb;
-    cv::cvtColor(frame, rgb, cv::COLOR_BGR2RGB);
-
-    QImage image(rgb.cols, rgb.rows, QImage::Format_RGB888);
-    for (int i = 0; i < rgb.rows; ++i) {
-        memcpy(image.scanLine(i), rgb.ptr(i), static_cast<long long>(rgb.cols) * 3);
-    }
-
+    const QImage image = cvMatToQImage(frame);
     const QImage small_image = image.scaled(SENT_IMAGE_SIZE, Qt::KeepAspectRatio, Qt::SmoothTransformation);
 
     QByteArray buffer;
@@ -103,18 +97,21 @@ void FrameProcessor::processFrame()
 
     QImage processed_image = image;
     {
-        const QMutexLocker locker(&m_detections_mutex);
-        if (m_has_valid_detections && !m_last_detections.isEmpty()) {
+        const QMutexLocker locker(&m_results_mutex);
+        if (!m_last_detections.isEmpty()) {
             processed_image = drawDetections(image, m_last_detections, SENT_IMAGE_SIZE);
+        }
+        if (!m_last_arch_center.isEmpty()) {
+            processed_image = drawArchCenter(processed_image, m_last_arch_center, SENT_IMAGE_SIZE);
         }
     }
 
     emit frameReady(processed_image);
 }
 
-void FrameProcessor::setDetections(const QJsonArray &detections)
+void FrameProcessor::setProcessingResult(const QJsonArray& detections, const QJsonObject& arch_center)
 {
-    const QMutexLocker locker(&m_detections_mutex);
+    const QMutexLocker locker(&m_results_mutex);
     m_last_detections = detections;
-    m_has_valid_detections = true;
+    m_last_arch_center = arch_center;
 }

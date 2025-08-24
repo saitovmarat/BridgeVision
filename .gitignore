@@ -36,6 +36,7 @@ out/
 *.~*
 .vs
 .vscode
+*.hint
 
 # Исключение файлов CMake
 CMakeFiles/
