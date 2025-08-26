@@ -84,22 +84,17 @@ QImage drawArchCenter(
     const double scale_back_x = orig_size.width() / scaled_size.width();
     const double scale_back_y = orig_size.height() / scaled_size.height();
 
-    // Получаем координаты центра арки в масштабированном изображении
     const int x_s = arch_center["x"].toInt();
     const int y_s = arch_center["y"].toInt();
 
-    // Переводим в оригинальные координаты
     int x_o = static_cast<int>(x_s * scale_back_x);
     int y_o = static_cast<int>(y_s * scale_back_y);
 
-    // Ограничиваем координаты
     x_o = std::max(0, std::min(x_o, mat.cols - 1));
     y_o = std::max(0, std::min(y_o, mat.rows - 1));
 
-    // Отрисовка точки
     cv::circle(mat, cv::Point(x_o, y_o), K_ARCH_CENTER_POINT_SIZE, cv::Scalar(0, COLOR_MAX, 0), -1);
 
-    // Текст
     const QString label = "Arch";
     const std::string text = label.toStdString();
     const cv::Point org(x_o + K_TEXT_OFFSET, y_o - K_TEXT_OFFSET);
