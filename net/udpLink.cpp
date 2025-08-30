@@ -99,7 +99,6 @@ void UdpLink::onUdpReadyRead()
         quint16 sender_port;
 
         m_udp_socket->readDatagram(datagram.data(), datagram.size(), &sender, &sender_port);
-        qDebug() << datagram;
 
         QJsonParseError error;
         const QJsonDocument doc = QJsonDocument::fromJson(datagram, &error);
