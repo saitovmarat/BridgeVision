@@ -20,9 +20,9 @@ UdpLink::UdpLink(QObject *parent)
 {
     if (!m_udp_socket->bind(QHostAddress::Any, 0)) {
         const QString error = m_udp_socket->errorString();
-        qDebug() << "Ошибка bind():" << m_udp_socket->error() << error;
+        qDebug() << "Error bind():" << m_udp_socket->error() << error;
     } else {
-        qDebug() << "UDP-сокет слушает на порту:" << m_udp_socket->localPort();;
+        qDebug() << "UDP socket is listening on the port:" << m_udp_socket->localPort();;
         connect(m_udp_socket, &QUdpSocket::readyRead, this, &UdpLink::onUdpReadyRead);
     }
 }
@@ -34,13 +34,13 @@ bool UdpLink::loadVideo(const QString &file_path)
     stop();
 
     if (file_path.isEmpty()) {
-        emit errorOccurred("Путь к видео не указан");
+        emit errorOccurred("Filepath to the video is not set!");
         return false;
     }
 
     const QFileInfo info(file_path);
     if (!info.exists()) {
-        emit errorOccurred("Файл не существует: " + file_path);
+        emit errorOccurred("File does not exist: " + file_path);
         return false;
     }
 
@@ -99,6 +99,7 @@ void UdpLink::onUdpReadyRead()
         quint16 sender_port;
 
         m_udp_socket->readDatagram(datagram.data(), datagram.size(), &sender, &sender_port);
+        qDebug() << datagram;
 
         QJsonParseError error;
         const QJsonDocument doc = QJsonDocument::fromJson(datagram, &error);
@@ -110,20 +111,14 @@ void UdpLink::onUdpReadyRead()
         QJsonObject response = doc.object();
 
         if (response.contains("error")) {
-            emit errorOccurred("Серверная ошибка: " + response["error"].toString());
-            continue;
-        }
-
-        if (!response["success"].toBool()) {
-            emit errorOccurred("Обработка на сервере не удалась");
+            emit errorOccurred("Server error: " + response["error"].toString());
             continue;
         }
 
         const QJsonArray detections = response["detections"].toArray();
-        const QJsonObject arch_center = response.contains("arch_center") ?
-            response["arch_center"].toObject() : QJsonObject{};
+        const QJsonObject target_point = response["target_point"].toObject();
 
-        emit processingResultReceived(detections, arch_center);
+        emit processingResultReceived(detections, target_point);
     }
 }
 

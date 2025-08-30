@@ -22,7 +22,7 @@
 #include <opencv2/videoio.hpp>
 
 
-FrameProcessor::FrameProcessor(QString video_path, QObject *parent)
+FrameProcessor::FrameProcessor(QString video_path, QObject* parent)
     : QObject(parent)
     , m_video_path(std::move(video_path)) {}
 
@@ -31,13 +31,13 @@ FrameProcessor::~FrameProcessor() = default;
 void FrameProcessor::start()
 {
     if (m_capture) {
-        emit errorOccurred("Видео уже открыто");
+        emit errorOccurred("Video is already opened!");
         return;
     }
 
     m_capture = std::make_unique<cv::VideoCapture>(m_video_path.toStdString());
     if (!m_capture->isOpened()) {
-        emit errorOccurred("Не удалось открыть видео: " + m_video_path);
+        emit errorOccurred("Couldn't open the video: " + m_video_path);
         return;
     }
 
@@ -48,7 +48,7 @@ void FrameProcessor::start()
     connect(m_timer, &QTimer::timeout, this, &FrameProcessor::processFrame);
     m_timer->start(m_frame_delay_ms);
 
-    qDebug() << "FrameProcessor: старт воспроизведения. FPS:" << (MILLISECONDS_PER_SECOND / m_frame_delay_ms);
+    qDebug() << "FrameProcessor: playback started. FPS:" << (MILLISECONDS_PER_SECOND / m_frame_delay_ms);
 }
 
 void FrameProcessor::stop()
@@ -90,7 +90,7 @@ void FrameProcessor::processFrame()
     const QByteArray datagram = doc.toJson(QJsonDocument::Compact);
 
     if (datagram.size() > SEND_BYTES_LIMIT) {
-        emit errorOccurred("UDP-пакет слишком большой: " + QString::number(datagram.size()) + " байт");
+        emit errorOccurred("UDP packet is too big: " + QString::number(datagram.size()) + " bytes");
     } else {
         emit sendUdpDatagram(datagram, QHostAddress(SERVER_HOST), SERVER_PORT);
     }
@@ -102,7 +102,7 @@ void FrameProcessor::processFrame()
             processed_image = drawDetections(image, m_last_detections, SENT_IMAGE_SIZE);
         }
         if (!m_last_arch_center.isEmpty()) {
-            processed_image = drawArchCenter(processed_image, m_last_arch_center, SENT_IMAGE_SIZE);
+            processed_image = drawTargetPoint(processed_image, m_last_arch_center, SENT_IMAGE_SIZE);
         }
     }
 

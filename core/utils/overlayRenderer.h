@@ -13,6 +13,6 @@ static constexpr int K_ARCH_CENTER_POINT_SIZE = 6;
 static constexpr int K_TEXT_OFFSET = 10;
 
 QImage drawDetections(const QImage &image, const QJsonArray &detections, const QSize &sent_size);
-QImage drawArchCenter(const QImage& original_image, const QJsonObject& arch_center, const QSize& sent_size);
+QImage drawTargetPoint(const QImage& original_image, const QJsonObject& arch_center, const QSize& sent_size);
 
 #endif // OVERLAYRENDERER_H

@@ -22,8 +22,8 @@ signals:
     void errorOccurred(const QString &error);
     void playbackFinished();
     void processingResultReceived(
-        const QJsonArray& detections,
-        const QJsonObject& arch_center
+        const QJsonArray &detections,
+        const QJsonObject &arch_center
     );
 
 private:

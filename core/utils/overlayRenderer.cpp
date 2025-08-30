@@ -34,7 +34,6 @@ QImage drawDetections(
 
     for (const auto &val : detections) {
         QJsonObject det = val.toObject();
-        const QString cls = det["class"].toString();
         const double conf = det["confidence"].toDouble();
         const int x1_s = det["x1"].toInt();
         const int y1_s = det["y1"].toInt();
@@ -54,19 +53,19 @@ QImage drawDetections(
         cv::rectangle(mat, cv::Rect(x1_o, y1_o, x2_o - x1_o, y2_o - y1_o),
                       cv::Scalar(0, COLOR_MAX, 0), LINE_THICKNESS);
 
-        const QString label = QString("%1 (%2)").arg(cls).arg(conf, 0, 'f', 2);
-        const std::string text = label.toStdString();
-
-        const cv::Point org(x1_o, y1_o - 5);
-        cv::putText(mat, text, org, cv::FONT_HERSHEY_SIMPLEX, FONT_SCALE,
-            cv::Scalar(0, COLOR_MAX, 0), LINE_THICKNESS);
+        cv::putText(mat,
+            QString::number(conf, 'f', 2).toStdString(),
+            cv::Point(x1_o, y1_o),
+            cv::FONT_HERSHEY_SIMPLEX, FONT_SCALE,
+            cv::Scalar(0, COLOR_MAX, 0), LINE_THICKNESS
+        );
     }
 
     return cvMatToQImage(mat);
 }
 
 
-QImage drawArchCenter(
+QImage drawTargetPoint(
     const QImage& original_image,
     const QJsonObject& arch_center,
     const QSize& sent_size)
